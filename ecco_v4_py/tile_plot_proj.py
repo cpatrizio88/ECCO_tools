@@ -11,11 +11,40 @@ projections.
 
 from __future__ import division,print_function
 import numpy as np
+import matplotlib
 import matplotlib.pylab as plt
 import matplotlib.path as mpath
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 from .resample_to_latlon import resample_to_latlon
+from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
+from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
+#import matplotlib.ticker as mticker
+#from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+#add to change plotting parameters
+matplotlib.rcParams.update({'font.size': 22})
+matplotlib.rcParams.update({'axes.titlesize': 22})
+matplotlib.rcParams.update({'figure.figsize': (10,8)})
+matplotlib.rcParams.update({'lines.linewidth': 2})
+matplotlib.rcParams.update({'legend.fontsize': 18})
+matplotlib.rcParams.update({'mathtext.fontset': 'cm'})
+matplotlib.rcParams.update({'ytick.major.size': 3})
+matplotlib.rcParams.update({'axes.labelsize': 20})
+matplotlib.rcParams.update({'ytick.labelsize': 16})
+matplotlib.rcParams.update({'xtick.labelsize': 16})
+
+def discrete_cmap(N, base_cmap=None):
+    """Create an N-bin discrete colormap from the specified input map"""
+
+    # Note that if base_cmap is a string or None, you can simply do
+    #    return plt.cm.get_cmap(base_cmap, N)
+    # The following works for string, None, or a colormap instance:
+
+    base = plt.cm.get_cmap(base_cmap)
+    color_list = base(np.linspace(0, 1, N))
+    cmap_name = base.name + str(N)
+    return base.from_list(cmap_name, color_list, N)
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
@@ -24,13 +53,14 @@ def plot_proj_to_latlon_grid(lons, lats, data,
                              plot_type = 'pcolormesh', 
                              user_lon_0 = 0,
                              lat_lim = 50, 
-                             levels = 20, 
+                             levels = 21, 
                              cmap='jet', 
                              dx=.25, 
                              dy=.25,
+                             units='',
                              show_colorbar = False, 
-                             show_grid_lines = True,
-                             show_grid_labels = True,
+                             show_grid_lines = False,
+                             show_grid_labels = False,
 		 	     grid_linewidth = 1, 
 	   	 	     grid_linestyle = '--', 
                              subplot_grid=None,
@@ -65,6 +95,8 @@ def plot_proj_to_latlon_grid(lons, lats, data,
         denotes to colormap
     dx, dy : float, optional
         latitude, longitude spacing for grid resampling
+    units : string, optional
+        units of data
     show_colorbar : logical, optional, default False
 	show a colorbar or not,
     show_grid_lines : logical, optional
@@ -114,17 +146,18 @@ def plot_proj_to_latlon_grid(lons, lats, data,
         A_right_limit = 180
         B_left_limit =  -180
         B_right_limit = user_lon_0
-        center_lon = A_left_limit + 180
+        #center_lon = A_left_limit + 180
        
         if not less_output:
             print ('-180 < user_lon_0 < 180')
- 
+    
+    #correction here to get desired behavior.
     elif user_lon_0 == 180 or user_lon_0 == -180:
         A_left_limit = -180
-        A_right_limit = 0
-        B_left_limit =  0
-        B_right_limit = 180
-        center_lon = 0
+        A_right_limit = 180
+        B_left_limit =  180
+        B_right_limit = -180
+        #center_lon = 0
 	
         if not less_output:
             print('user_lon_0 ==-180 or 180')
@@ -134,8 +167,8 @@ def plot_proj_to_latlon_grid(lons, lats, data,
 
     #%%
     # the number of degrees spanned in part A and part B
-    num_deg_A =  int((A_right_limit - A_left_limit)/dx)
-    num_deg_B =  int((B_right_limit - B_left_limit)/dx)
+    num_deg_A =  (int((A_right_limit - A_left_limit)/dx))
+    num_deg_B =  (int((B_right_limit - B_left_limit)/dx))
 
     # find the longitudal limits of part A and B
     lon_tmp_d = dict()
@@ -177,6 +210,7 @@ def plot_proj_to_latlon_grid(lons, lats, data,
                              circle_boundary=True,
                              cmap=cmap, 
                              show_grid_lines=False,
+                             levels=levels,
                              less_output=less_output)
 
         else: # not polar stereo
@@ -190,27 +224,73 @@ def plot_proj_to_latlon_grid(lons, lats, data,
                             show_colorbar = False,
                             cmap=cmap, 
 			    show_grid_lines = False,
+                            levels=levels,
                             show_grid_labels = False)
 			    
                     
         if show_grid_lines :
-            ax.gridlines(crs=ccrs.PlateCarree(), 
+            gl=ax.gridlines(crs=ccrs.PlateCarree(), 
                                   linewidth=grid_linewidth,
 				  color='black', 	
-                                  alpha=0.5, 
+                                  alpha=0.3, 
 				  linestyle=grid_linestyle, 
                                   draw_labels = show_grid_labels)
+
+            #format latitude and longitude labels
+            #gl.ylabels_right=False 
+            #gl.xlabels_top=False
+#            gl.xformatter = LONGITUDE_FORMATTER
+#            gl.yformatter = LATITUDE_FORMATTER
+#            ax.get_yaxis().set_tick_params(direction='out')
+#            ax.get_xaxis().set_tick_params(direction='out')
+            #ax.get_xticklabels()
+#            xlabels=ax.get_xticklabels()
+#            ylabels = ax.get_yticklabels()
+#            print ('xlabels', xlabels[:])
+#            print ('ylabels', xlabels[:])
         
          #%%
-        ax.add_feature(cfeature.LAND)
-        ax.add_feature(cfeature.COASTLINE,linewidth=0.5)
-
+        ax.add_feature(cfeature.LAND, edgecolor='k', facecolor='grey')
+        #ax.coastlines()
+        ax.add_feature(cfeature.COASTLINE,linewidth=0.1)
+    
+    #Add this for better lat/lon labeling
     ax= plt.gca()
-
+                    
+    pardiff = 30.
+    merdiff = 60.
+    par = np.arange(-90.,91.,pardiff)
+    mer = np.arange(-180.,180.,merdiff)
+    
+    ax.set_xticks(mer, crs=ax.projection)
+    ax.set_yticks(par, crs=ax.projection)
+    lon_formatter = LongitudeFormatter(zero_direction_label=True)
+    lat_formatter = LatitudeFormatter()
+    ax.xaxis.set_major_formatter(lon_formatter)
+    ax.yaxis.set_major_formatter(lat_formatter)
+    ax.get_yaxis().set_tick_params(direction='out')
+    ax.get_xaxis().set_tick_params(direction='out')
+    
+    #Add this for fixed plotting bounds
+    bnds = [lons.min().values, lons.max().values, lats.min().values, lats.max().values]
+    
+    ax.set_extent((bnds[0], bnds[1], bnds[2], bnds[3]), crs=ax.projection)
+    
+    #Adjust colorbar depending on longitude limits
     if show_colorbar:
-        sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(cmin,cmax))
+        if np.abs(A_left_limit - A_right_limit) >= 180:
+            orient='horizontal'
+            #orient='bottom'
+        else:
+            orient='vertical'
+            #orient='right'
+        sm = plt.cm.ScalarMappable(cmap=discrete_cmap(levels, cmap), norm=plt.Normalize(cmin,cmax))
         sm._A = []
-        cbar = plt.colorbar(sm,ax=ax)        
+        #divider = make_axes_locatable(ax)
+        #cax = divider.append_axes(orient, size="5%", pad=0.05)
+        cbar = plt.colorbar(sm,ax=ax,orientation=orient,fraction=0.078, pad=0.09, label=units)
+        #cbar = plt.colorbar(sm,cax=cax)
+        #cbar = plt.colorbar(ax=ax)   
     
    
 
@@ -261,6 +341,8 @@ def plot_pstereo(xx,yy, data,
         gl = ax.gridlines(crs=ccrs.PlateCarree(), 
                           linewidth=grid_linewidth, color='black', 
                           alpha=0.5, linestyle=grid_linestyle)
+        gl.ylabels_right=False
+        gl.xlabels_top=False
     else:
         gl = []
 
@@ -285,11 +367,11 @@ def plot_pstereo(xx,yy, data,
 
          
     ax.add_feature(cfeature.LAND)
-    ax.coastlines('110m', linewidth=0.8)
+    ax.coastlines('110m', linewidth=0.5)
 
     cbar = []
     if show_colorbar:
-        sm = plt.cm.ScalarMappable(cmap=cmap,norm=plt.Normalize(cmin,cmax))
+        sm = plt.cm.ScalarMappable(cmap=discrete_cmap(levels, cmap), norm=plt.Normalize(cmin,cmax))
         sm._A = []
         cbar = plt.colorbar(sm,ax=ax)
     
@@ -313,6 +395,8 @@ def plot_global(xx,yy, data,
                           linewidth=1, color='black', 
                           draw_labels = show_grid_labels,
                           alpha=0.5, linestyle='--')
+        gl.ylabels_right=False
+        gl.xlabels_top=False
     else:
         gl = []
         
@@ -326,19 +410,18 @@ def plot_global(xx,yy, data,
                           vmin=cmin, vmax=cmax, cmap=cmap)
     elif plot_type =='contourf':
         p = ax.contourf(xx, yy, data, levels, transform=data_crs,
-                        vmin=cmin, vmax=cmax, cmap=cmap)
+                        vmin=cmin, vmax=cmax, cmap=cmap, extend='both')
     else:
         raise ValueError('plot_type  must be either "pcolormesh" or "contourf"') 
                          
-    ax.coastlines('110m', linewidth=grid_linewidth)
+    ax.coastlines('110m', linewidth=0.5)
     ax.add_feature(cfeature.LAND)
 
     cbar = []
     if show_colorbar:
-        sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(cmin,cmax))
+        sm = plt.cm.ScalarMappable(cmap=discrete_cmap(levels, cmap), norm=plt.Normalize(cmin,cmax))
         sm._A = []
-        cbar = plt.colorbar(sm,ax=ax)
-    
+        cbar = plt.colorbar(sm,ax=ax) 
     return p, gl, cbar
 
 # -----------------------------------------------------------------------------

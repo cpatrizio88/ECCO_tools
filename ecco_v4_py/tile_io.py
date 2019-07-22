@@ -64,9 +64,11 @@ def load_ecco_grid_from_tiles_nc(grid_dir,
         an xarray Dataset
 
     """
+    
+
  
     if not less_output:
-        print ('tiles_to_load ', tiles_to_load)
+        print ('tiles_to_load', tiles_to_load)
         print ('years to load ', years_to_load)
 
     if isinstance(tiles_to_load,str):
@@ -86,6 +88,8 @@ def load_ecco_grid_from_tiles_nc(grid_dir,
     g = []
     
     for i in tiles_to_load:
+    
+        print ('tile', i)
         
         if dask_chunk:
             g_i = xr.open_dataset(grid_dir + '/' + \
@@ -97,7 +101,8 @@ def load_ecco_grid_from_tiles_nc(grid_dir,
                               str(i).zfill(2) + '.nc').load()
 
         if len(k_subset) > 0:
-            g_i = g_i.isel(k=k_subset)
+            #Fix: for some reason depth is i1 for grid files, for other files it is i2
+            g_i = g_i.isel(i1=k_subset)
             
       
         if isinstance(g, list):
@@ -465,8 +470,8 @@ def load_ecco_var_from_tiles_nc(data_dir,
                     #g_i = g_i.chunk(nx, nx)
     
                 if len(k_subset) > 0 and \
-                    'k' in g_i.coords.keys():
-                    g_i = g_i.isel(k=k_subset)
+                    'i2' in g_i.coords.keys():
+                    g_i = g_i.isel(i2=k_subset)
                                     
     
                 if len(g) == 0:
@@ -603,7 +608,7 @@ def load_ecco_var_from_years_nc(data_dir, var_to_load, \
 
                     # pull out a k subset
                     if len(k_subset) > 0 and 'k' in g_i.coords.keys():
-                        g_i = g_i.isel(k=k_subset)
+                        g_i = g_i.isel(i2=k_subset)
     
                     # pull out the tile subset
                     g_i = g_i.isel(tile=tiles_to_load)
